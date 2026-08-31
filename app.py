@@ -72,7 +72,11 @@ REGION_CODES = list(REGIONS.keys())
 app = FastAPI(title="MOIL Pan-India AI-Geo Backend", version="2.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://MOIL.vercel.app",  # Replace with your actual Vercel URL
+        "http://localhost:5173",             # Local Vite dev server
+        "http://localhost:3000",             # Local React dev server
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
