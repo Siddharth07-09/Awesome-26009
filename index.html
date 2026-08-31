@@ -1,0 +1,338 @@
+<!-- ============================================================================
+     index.html — MOIL Pan-India AI-Geo Command Center
+     Tailwind CDN + Leaflet.js CDN + Chart.js CDN | Multi-region live dashboard
+     ============================================================================ -->
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<title>MOIL Pan-India AI-Geo Command Center</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  body{background:#0b0f14;color:#e5e7eb;font-family:Inter,system-ui,sans-serif}
+  .card{background:#121821;border:1px solid #1f2937;border-radius:12px}
+  .tab-btn.active{background:#2563eb;color:#fff}
+  .tab-btn{transition:.15s}
+  #map{height:540px;border-radius:12px}
+  select{background:#1f2937;color:#fff;border:1px solid #374151;border-radius:8px;padding:8px}
+  ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#374151;border-radius:4px}
+</style>
+</head>
+<body class="p-4 md:p-8">
+<div class="max-w-7xl mx-auto">
+  <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div>
+      <h1 class="text-3xl font-bold text-blue-400">⛏️ MOIL Pan-India AI-Geo Command Center</h1>
+      <p class="text-gray-400 text-sm">Ministry of Steel · National Manganese Reserve Intelligence & Production Continuity</p>
+      <p id="rasterMode" class="text-xs text-yellow-400 mt-1"></p>
+    </div>
+    <div>
+      <label class="text-xs text-gray-400 block mb-1">Region Selector</label>
+      <select id="regionSelect" class="w-72">
+        <option value="ALL">🇮🇳 All India Macro View</option>
+        <option value="MP_MH">🟦 MP-Maharashtra Belt (MOIL Core)</option>
+        <option value="ODISHA">🟧 Odisha Mineral Belt</option>
+        <option value="AP">🟩 Andhra Pradesh Belt</option>
+        <option value="KARNATAKA">🟪 Karnataka Belt</option>
+        <option value="GUJARAT">🟨 Gujarat Belt (Panchmahal)</option>
+      </select>
+    </div>
+  </header>
+
+  <nav class="flex gap-2 mb-6 flex-wrap">
+    <button class="tab-btn active px-4 py-2 rounded-lg bg-gray-800 font-medium" data-tab="t1">🎯 Command Center</button>
+    <button class="tab-btn px-4 py-2 rounded-lg bg-gray-800 font-medium" data-tab="t2">🛰️ Reserve Mapper</button>
+    <button class="tab-btn px-4 py-2 rounded-lg bg-gray-800 font-medium" data-tab="t3">📉 Shortfall Predictor</button>
+    <button class="tab-btn px-4 py-2 rounded-lg bg-gray-800 font-medium" data-tab="t4">🧠 Prescriptive AI</button>
+  </nav>
+
+  <!-- TAB 1 -->
+  <section id="t1" class="tab-section space-y-6">
+    <h2 id="kpiRegionTitle" class="text-xl font-semibold text-gray-300"></h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="card p-5"><p class="text-gray-400 text-sm">Estimated Reserves</p><p id="kpiReserves" class="text-3xl font-bold text-blue-400">--</p><p class="text-xs text-gray-500">MT (AI-derived)</p></div>
+      <div class="card p-5"><p class="text-gray-400 text-sm">Projected Monthly Output</p><p id="kpiOutput" class="text-3xl font-bold text-green-400">--</p><p class="text-xs text-gray-500">Tons (trailing 30d)</p></div>
+      <div class="card p-5"><p class="text-gray-400 text-sm">Shortfall Risk</p><p id="kpiRisk" class="text-3xl font-bold text-orange-400">--</p><p class="text-xs text-gray-500">% vs target</p></div>
+      <div class="card p-5"><p class="text-gray-400 text-sm">Fleet Availability</p><p id="kpiFleet" class="text-3xl font-bold text-purple-400">--</p><p class="text-xs text-gray-500">% index</p></div>
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold mb-3">🚨 Live Alert Feed</h3>
+      <div id="alertFeed" class="space-y-2 text-sm"></div>
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold mb-3">🗺️ Regional Reserve Breakdown</h3>
+      <canvas id="regionBarChart" height="90"></canvas>
+    </div>
+    <div class="card p-5">
+      <p class="text-sm text-gray-400">Shortfall Model R²: <span id="kpiR2" class="text-white">--</span> · MAE: <span id="kpiMae" class="text-white">--</span> Tons</p>
+    </div>
+  </section>
+
+  <!-- TAB 2 -->
+  <section id="t2" class="tab-section hidden space-y-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 card p-3"><div id="map"></div></div>
+      <div class="space-y-4">
+        <!-- Card 1: Map Analytics & Legend -->
+        <div class="card p-5">
+          <h3 class="font-semibold mb-3">🗺️ Map Analytics & Legend</h3>
+          <div class="text-sm text-gray-400 mb-3">High-Confidence Zones (&gt;0.7): <span id="highConfZones" class="text-white font-bold text-lg ml-1">--</span></div>
+          <div class="text-xs text-gray-400 space-y-2" id="legendBox">
+            <div class="flex items-center"><span class="inline-block w-3 h-3 rounded-full bg-green-500 mr-2 flex-shrink-0"></span>Ground-truth: Mn+ deposit confirmed</div>
+            <div class="flex items-center"><span class="inline-block w-3 h-3 rounded-full bg-gray-500 mr-2 flex-shrink-0"></span>Ground-truth: Mn- (no deposit)</div>
+            <div class="flex items-center"><span class="inline-block w-3 h-3 rounded-full bg-red-500 mr-2 flex-shrink-0"></span>High probability zone (&gt;0.75)</div>
+            <div class="flex items-center"><span class="inline-block w-3 h-3 rounded-full bg-orange-400 mr-2 flex-shrink-0"></span>Moderate probability zone</div>
+            <div class="flex items-center"><span class="inline-block w-3 h-3 rounded-full bg-blue-400 mr-2 flex-shrink-0"></span>Active mine location</div>
+          </div>
+        </div>
+
+        <!-- Card 2: Feature Importance Chart -->
+        <div class="card p-5">
+          <h3 class="font-semibold mb-3">🔬 Feature Importance</h3>
+          <canvas id="impChart" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3 -->
+  <section id="t3" class="tab-section hidden space-y-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="card p-5 space-y-4">
+        <h3 class="font-semibold">🧪 What-If Simulator</h3>
+        <div>
+          <label class="text-sm text-gray-400">Pit / Mine</label>
+          <select id="simPit" class="w-full mt-1"></select>
+        </div>
+        <div><label class="text-sm text-gray-400">Target Tons: <span id="valTarget">850</span></label>
+          <input type="range" id="simTarget" min="200" max="1200" value="850" class="w-full"></div>
+        <div><label class="text-sm text-gray-400">Rainfall (mm): <span id="valRain">18</span></label>
+          <input type="range" id="simRain" min="0" max="120" value="18" class="w-full"></div>
+        <div><label class="text-sm text-gray-400">Equipment Downtime (hrs, combined): <span id="valDT">4.3</span></label>
+          <input type="range" id="simDT" min="0" max="30" step="0.5" value="4.3" class="w-full"></div>
+        <div><label class="text-sm text-gray-400">Blasting Delay (mins): <span id="valBlast">15</span></label>
+          <input type="range" id="simBlast" min="0" max="150" value="15" class="w-full"></div>
+      </div>
+      <div class="lg:col-span-2 space-y-4">
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-4"><p class="text-gray-400 text-xs">Predicted Shortfall</p><p id="resShortfall" class="text-2xl font-bold text-red-400">--</p></div>
+          <div class="card p-4"><p class="text-gray-400 text-xs">Predicted Output</p><p id="resOutput" class="text-2xl font-bold text-green-400">--</p></div>
+          <div class="card p-4"><p class="text-gray-400 text-xs">Risk Level</p><p id="resLevel" class="text-2xl font-bold">--</p></div>
+        </div>
+        <div class="card p-5"><canvas id="simChart" height="180"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4 -->
+  <section id="t4" class="tab-section hidden space-y-4">
+    <div class="card p-5">
+      <h3 class="font-semibold mb-3">🧠 Prescriptive Mitigation Directives</h3>
+      <p class="text-sm text-gray-400 mb-3">Live recommendations for the currently selected region/scenario (Tab 3). Change region or sliders to refresh.</p>
+      <div id="recCards" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const API = "http://localhost:8000";
+let currentRegion = "ALL";
+let map, impChartRef, simChartRef, regionBarRef;
+let markerLayer;
+
+// ---------- TAB SWITCHING ----------
+document.querySelectorAll(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tab-section").forEach(s=>s.classList.add("hidden"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.remove("hidden");
+    if(btn.dataset.tab==="t2") setTimeout(()=>map.invalidateSize(),200);
+  });
+});
+
+// ---------- REGION SELECTOR ----------
+const REGION_META = {
+  ALL:        {center:[20.5937,78.9629], zoom:5},
+  MP_MH:      {center:[21.4,79.8],  zoom:8},
+  ODISHA:     {center:[21.9,85.2],  zoom:8},
+  AP:         {center:[18.6,83.5],  zoom:8},
+  KARNATAKA:  {center:[14.0,76.1],  zoom:8},
+  GUJARAT:    {center:[22.85,73.65],zoom:9},
+};
+document.getElementById("regionSelect").addEventListener("change", (e)=>{
+  currentRegion = e.target.value;
+  refreshAll();
+});
+
+function fetchJSON(url, opts){ return fetch(url, opts).then(r=>r.json()); }
+
+// ---------- TAB 1: KPIs ----------
+async function loadKPIs(){
+  const d = await fetchJSON(`${API}/api/dashboard-kpis?region=${currentRegion}`);
+  document.getElementById("kpiRegionTitle").textContent = "📍 " + d.region_name;
+  document.getElementById("kpiReserves").textContent = d.estimated_reserves_mt + " MT";
+  document.getElementById("kpiOutput").textContent = d.projected_monthly_output_tons.toLocaleString();
+  document.getElementById("kpiRisk").textContent = d.shortfall_risk_pct + "%";
+  document.getElementById("kpiFleet").textContent = d.fleet_availability_pct + "%";
+  document.getElementById("kpiR2").textContent = d.model_r2;
+  document.getElementById("kpiMae").textContent = d.model_mae;
+  document.getElementById("rasterMode").textContent = "Data Source Mode: " + d.raster_mode;
+
+  const feed = document.getElementById("alertFeed");
+  feed.innerHTML = "";
+  const alerts = [];
+  if(d.shortfall_risk_pct > 15) alerts.push(["📉 Shortfall", `${d.region_name}: shortfall risk elevated at ${d.shortfall_risk_pct}%.`]);
+  if(d.fleet_availability_pct < 85) alerts.push(["🛠️ Equipment", `${d.region_name}: fleet availability below SLA at ${d.fleet_availability_pct}%.`]);
+  if(alerts.length===0){ feed.innerHTML = '<div class="p-3 bg-green-900/40 rounded text-green-300">✅ All systems nominal.</div>'; }
+  else { alerts.forEach(([tag,msg])=>{ feed.innerHTML += `<div class="p-3 bg-red-900/40 rounded text-red-300"><b>${tag}</b> — ${msg}</div>`; }); }
+
+  const labels = Object.values(d.region_breakdown).map(r=>r.name.split('(')[0].trim());
+  const values = Object.values(d.region_breakdown).map(r=>r.reserves_mt);
+  const ctx = document.getElementById("regionBarChart");
+  if(regionBarRef) regionBarRef.destroy();
+  regionBarRef = new Chart(ctx, {
+    type:'bar',
+    data:{labels, datasets:[{label:'Reserves (MT)', data:values, backgroundColor:'#3b82f6'}]},
+    options:{plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#9ca3af'}},y:{ticks:{color:'#9ca3af'}}}}
+  });
+}
+
+// ---------- TAB 2: Map ----------
+function initMap(){
+  map = L.map('map', {zoomControl:true}).setView([20.5937,78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+}
+async function loadReserveMap(){
+  const d = await fetchJSON(`${API}/api/reserve-map?region=${currentRegion}`);
+  markerLayer.clearLayers();
+  document.getElementById("highConfZones").textContent = d.high_confidence_zones;
+
+  d.grid_points.forEach(p=>{
+    if(p.probability > 0.55){
+      L.circleMarker([p.latitude, p.longitude], {
+        radius: 3 + p.probability*7,
+        color: p.probability>0.75 ? '#ef4444' : '#f59e0b',
+        fillOpacity: 0.5, weight:1
+      }).bindTooltip(`${p.region_name}<br>Prob: ${p.probability.toFixed(2)}<br>Nearest: ${p.nearest_mine}`).addTo(markerLayer);
+    }
+  });
+  d.ground_truth.forEach(g=>{
+    L.circleMarker([g.latitude, g.longitude], {
+      radius:5, color: g.has_manganese ? '#22c55e' : '#6b7280', fillOpacity:0.9, weight:1
+    }).bindTooltip(`${g.region_name}<br>Ground Truth: ${g.has_manganese ? 'Mn+' : 'Mn-'}`).addTo(markerLayer);
+  });
+  d.mine_markers.forEach(m=>{
+    L.marker([m.latitude, m.longitude], {icon: L.divIcon({className:'', html:'<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:2px solid white"></div>'})})
+      .bindTooltip(`⛏️ ${m.mine} (${m.region_name})`).addTo(markerLayer);
+  });
+
+  const rm = REGION_META[currentRegion];
+  map.flyTo(rm.center, rm.zoom, {duration: 1.2});
+
+  const labels = Object.keys(d.feature_importances);
+  const values = Object.values(d.feature_importances);
+  const ctx = document.getElementById("impChart");
+  if(impChartRef) impChartRef.destroy();
+  impChartRef = new Chart(ctx, {
+    type:'bar',
+    data:{labels, datasets:[{label:'Importance', data:values, backgroundColor:'#3b82f6'}]},
+    options:{indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#9ca3af'}},y:{ticks:{color:'#9ca3af'}}}}
+  });
+}
+
+// ---------- TAB 3: What-If Simulator ----------
+const REGION_MINES = {
+  MP_MH: ["Bharveli","Ukwa","Tirodi","Dongri Buzurg"],
+  ODISHA: ["Keonjhar Mine","Sundargarh Mine"],
+  AP: ["Garbham Mine","Kakiriguma Mine"],
+  KARNATAKA: ["Sandur Mine","Shimoga Mine"],
+  GUJARAT: ["Panchmahal Mine"],
+  ALL: ["Bharveli","Ukwa","Tirodi","Dongri Buzurg"],
+};
+function populatePitSelector(){
+  const region = currentRegion === "ALL" ? "MP_MH" : currentRegion;
+  const sel = document.getElementById("simPit");
+  sel.innerHTML = "";
+  REGION_MINES[region].forEach(m=>{
+    const opt = document.createElement("option"); opt.value = m; opt.textContent = m; sel.appendChild(opt);
+  });
+}
+const sliderIds = ["simTarget","simRain","simDT","simBlast"];
+const valIds = {simTarget:"valTarget", simRain:"valRain", simDT:"valDT", simBlast:"valBlast"};
+sliderIds.forEach(id=>{
+  document.getElementById(id).addEventListener("input", (e)=>{
+    document.getElementById(valIds[id]).textContent = e.target.value;
+    runSimulation();
+  });
+});
+document.getElementById("simPit").addEventListener("change", runSimulation);
+
+async function runSimulation(){
+  const region = currentRegion === "ALL" ? "MP_MH" : currentRegion;
+  const payload = {
+    region: region,
+    pit_id: document.getElementById("simPit").value,
+    target_tons: parseFloat(document.getElementById("simTarget").value),
+    rainfall_mm: parseFloat(document.getElementById("simRain").value),
+    equipment_downtime: parseFloat(document.getElementById("simDT").value),
+    blasting_delay_mins: parseFloat(document.getElementById("simBlast").value)
+  };
+  const d = await fetchJSON(`${API}/api/predict-shortfall`, {
+    method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload)
+  });
+  document.getElementById("resShortfall").textContent = d.predicted_shortfall_tons + " T";
+  document.getElementById("resOutput").textContent = d.predicted_actual_tons + " T";
+  const lvlEl = document.getElementById("resLevel");
+  lvlEl.textContent = d.risk_level + " (" + d.risk_pct + "%)";
+  lvlEl.className = "text-2xl font-bold " + (d.risk_level==="CRITICAL"?"text-red-500":d.risk_level==="ELEVATED"?"text-orange-400":"text-green-400");
+
+  const ctx = document.getElementById("simChart");
+  if(simChartRef) simChartRef.destroy();
+  simChartRef = new Chart(ctx, {
+    type:'bar',
+    data:{labels:['Target','Predicted Actual','Predicted Shortfall'],
+      datasets:[{label:'Tons', data:[payload.target_tons, d.predicted_actual_tons, d.predicted_shortfall_tons],
+        backgroundColor:['#6b7280','#22c55e','#ef4444']}]},
+    options:{plugins:{legend:{display:false},title:{display:true,text:d.region_name,color:'#9ca3af'}}, scales:{x:{ticks:{color:'#9ca3af'}},y:{ticks:{color:'#9ca3af'}}}}
+  });
+
+  renderRecommendations(d);
+}
+
+// ---------- TAB 4: Prescriptive Cards ----------
+function renderRecommendations(d){
+  const box = document.getElementById("recCards");
+  box.innerHTML = "";
+  const icons = ["🚛","💥","⚠️","⚖️","📋"];
+  d.recommendations.forEach((rec, i)=>{
+    box.innerHTML += `<div class="card p-4 border-l-4 ${d.risk_level==='CRITICAL'?'border-red-500':d.risk_level==='ELEVATED'?'border-orange-400':'border-green-500'}">
+      <p class="text-sm"><span class="mr-2">${icons[i % icons.length]}</span>${rec}</p>
+    </div>`;
+  });
+  if(d.recommendations.length===0){
+    box.innerHTML = '<div class="card p-4 text-green-400">✅ No interventions required at current scenario.</div>';
+  }
+}
+
+// ---------- REFRESH ALL ON REGION CHANGE ----------
+async function refreshAll(){
+  populatePitSelector();
+  await loadKPIs();
+  await loadReserveMap();
+  await runSimulation();
+}
+
+// ---------- INIT ----------
+initMap();
+populatePitSelector();
+loadKPIs();
+loadReserveMap();
+runSimulation();
+</script>
+</body>
+</html>
