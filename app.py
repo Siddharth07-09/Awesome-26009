@@ -6,6 +6,7 @@ import os
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, Query
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingRegressor
@@ -81,6 +82,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.get("/")
+async def read_root():
+    return FileResponse("index.html")
 
 # ----------------------------------------------------------------------------------
 # RASTER UTILITIES (used only for MP_MH if local files present)
